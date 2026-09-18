@@ -2,35 +2,36 @@ import vinext from "vinext";
 import { defineConfig } from "vite";
 import { readExecutionProfile } from "./scripts/execution-profile.mjs";
 
-const LOCAL_PLACEHOLDER_DATABASE_ID = "00000000-0000-4000-8000-000000000000";
-
 // macOS Seatbelt blocks FSEvents, so Codex previews need polling for HMR.
 const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === "seatbelt";
 const managedLinux = readExecutionProfile() === "managed-linux";
 
-// Bindings para desenvolvimento local com Miniflare. Em produção, o deploy real
-// (wrangler.json/wrangler.toml gerado a partir daqui, ou um config próprio) deve
-// apontar `database_id`/`bucket_name` para os recursos reais da conta Cloudflare,
-// e SESSION_SECRET deve ser definido via `wrangler secret put SESSION_SECRET`.
+// Este mesmo objeto alimenta tanto o `vite dev`/Miniflare local quanto o
+// wrangler.json gerado em `pnpm build` (usado pelo deploy real). Os valores de
+// D1/R2 abaixo já são os recursos de produção criados na conta Cloudflare do
+// projeto (dash.cloudflare.com), então funcionam nos dois casos: em dev local
+// o Miniflare só usa o `database_id`/`bucket_name` como rótulo (não acessa a
+// nuvem), e em produção o `wrangler deploy` usa esses mesmos IDs pra conectar
+// no D1/R2 reais. Se algum dia for necessário trocar de conta/projeto, troque
+// os três valores abaixo (database_id, bucket_name, SESSION_SECRET).
 const localBindingConfig = {
   main: "./worker/index.ts",
   compatibility_flags: ["nodejs_compat"],
   d1_databases: [
     {
       binding: "DB",
-      database_name: "harmonia-d1-local",
-      database_id: LOCAL_PLACEHOLDER_DATABASE_ID,
+      database_name: "harmonia-db",
+      database_id: "9531e2fd-8984-4d2c-914a-9982e29be26d",
     },
   ],
   r2_buckets: [
     {
       binding: "BUCKET",
-      bucket_name: "harmonia-r2-local",
+      bucket_name: "harmonia-files",
     },
   ],
   vars: {
-    // Valor de desenvolvimento apenas — nunca usar em produção.
-    SESSION_SECRET: "dev-only-insecure-secret-troque-em-producao",
+    SESSION_SECRET: "yzX2h9rFwqVtA7/6lpCjNpnfXecMi3RHNhBfYHdsC3Y=",
   },
 };
 
