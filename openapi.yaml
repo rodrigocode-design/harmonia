@@ -1,0 +1,235 @@
+openapi: 3.1.0
+info:
+  title: API Harmonia
+  version: 0.1.0
+  description: API autenticada da plataforma operacional para escola de música.
+servers:
+  - url: /
+security:
+  - managedIdentity: []
+paths:
+  /api/app:
+    get:
+      summary: Carrega o portal no escopo da função ativa
+      parameters:
+        - $ref: '#/components/parameters/Role'
+      responses:
+        '200':
+          description: Dados autorizados do portal
+          headers:
+            Cache-Control:
+              schema: { type: string, const: 'no-store, private' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PortalData' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+    post:
+      summary: Executa um caso de uso transacional
+      parameters:
+        - $ref: '#/components/parameters/Role'
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema: { type: string, minLength: 12, maxLength: 100 }
+        - name: Origin
+          in: header
+          required: true
+          schema: { type: string, format: uri }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ActionRequest' }
+      responses:
+        '200':
+          description: Caso de uso concluído
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ActionResult' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/files:
+    post:
+      summary: Envia arquivo ao armazenamento privado em quarentena
+      parameters:
+        - $ref: '#/components/parameters/Role'
+        - name: Origin
+          in: header
+          required: true
+          schema: { type: string, format: uri }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '201':
+          description: Arquivo recebido e isolado
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [file, message]
+                properties:
+                  file: { $ref: '#/components/schemas/FileMetadata' }
+                  message: { type: string }
+        '400': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/files/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, minLength: 8, maxLength: 100 }
+      - $ref: '#/components/parameters/Role'
+    get:
+      summary: Baixa arquivo privado autorizado e liberado pelo antimalware
+      responses:
+        '200':
+          description: Conteúdo binário
+          headers:
+            Cache-Control:
+              schema: { type: string, const: 'private, no-store' }
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '423': { $ref: '#/components/responses/Error' }
+    delete:
+      summary: Exclui arquivo de forma autorizada e auditada
+      parameters:
+        - name: Origin
+          in: header
+          required: true
+          schema: { type: string, format: uri }
+      responses:
+        '200':
+          description: Arquivo excluído
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ActionResult' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /api/export:
+    get:
+      summary: Exporta somente dados autorizados
+      parameters:
+        - $ref: '#/components/parameters/Role'
+        - name: kind
+          in: query
+          required: true
+          schema: { type: string, enum: [report_pdf, lessons_csv] }
+        - name: id
+          in: query
+          required: false
+          description: Obrigatório para report_pdf.
+          schema: { type: string }
+      responses:
+        '200':
+          description: PDF identificado ou CSV neutralizado
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+            text/csv:
+              schema: { type: string }
+        '403': { $ref: '#/components/responses/Error' }
+components:
+  securitySchemes:
+    managedIdentity:
+      type: apiKey
+      in: header
+      name: oai-authenticated-user-id
+      description: Cabeçalho injetado e autenticado pela plataforma; clientes externos não devem fabricá-lo.
+  parameters:
+    Role:
+      name: x-harmonia-role
+      in: header
+      required: false
+      description: Contexto ativo; aceito somente se atribuído ao usuário autenticado.
+      schema:
+        $ref: '#/components/schemas/Role'
+  responses:
+    Error:
+      description: Erro público sem detalhes internos
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+  schemas:
+    Role:
+      type: string
+      enum: [ADMIN, DIRECAO, SECRETARIA, COORDENACAO, PROFESSOR, ALUNO, RESPONSAVEL, FINANCEIRO]
+    ActionRequest:
+      type: object
+      additionalProperties: false
+      required: [action, payload]
+      properties:
+        action:
+          type: string
+          enum:
+            - create_lesson
+            - cancel_lesson
+            - record_attendance
+            - create_task
+            - submit_task
+            - review_submission
+            - transition_report
+            - create_event
+            - rsvp_event
+            - create_announcement
+            - acknowledge_announcement
+            - add_practice
+            - record_payment
+            - create_student
+        payload:
+          type: object
+          description: Validado no servidor pelo esquema específico da ação.
+    ActionResult:
+      type: object
+      required: [ok, message]
+      properties:
+        ok: { type: boolean }
+        message: { type: string }
+        id: { type: string }
+        ids:
+          type: array
+          items: { type: string }
+        version: { type: integer }
+    PortalData:
+      type: object
+      description: Projeção agregada já filtrada pelo perfil e pelos vínculos do usuário.
+      required: [session, lessons, tasks, reports, events, announcements]
+      additionalProperties: true
+      properties:
+        session:
+          type: object
+          additionalProperties: true
+        lessons: { type: array, items: { type: object, additionalProperties: true } }
+        tasks: { type: array, items: { type: object, additionalProperties: true } }
+        reports: { type: array, items: { type: object, additionalProperties: true } }
+        events: { type: array, items: { type: object, additionalProperties: true } }
+        announcements: { type: array, items: { type: object, additionalProperties: true } }
+    FileMetadata:
+      type: object
+      required: [id, name, size, status]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        size: { type: integer }
+        status: { type: string, const: QUARANTINED }
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }
