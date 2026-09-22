@@ -33,6 +33,9 @@ yarn-error.log*
 .env*
 !.env.example
 
+# wrangler local secrets (never commit — used only for local dev)
+.dev.vars
+
 # vercel
 .vercel
 
