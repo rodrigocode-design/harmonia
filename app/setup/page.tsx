@@ -24,7 +24,7 @@ export default async function SetupPage({
           <span className="brand-symbol"><Music2 /></span>
           <div>
             <h1 className="text-xl font-semibold tracking-tight text-white">Harmonia</h1>
-            <p className="text-sm text-[#9fb2c6]">Primeiro acesso — crie a conta da direção</p>
+            <p className="text-sm text-[#9fb2c6]">Crie a conta de acesso</p>
           </div>
         </div>
         <Card className="shadow-xl">
