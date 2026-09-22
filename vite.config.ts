@@ -13,7 +13,13 @@ const managedLinux = readExecutionProfile() === "managed-linux";
 // o Miniflare só usa o `database_id`/`bucket_name` como rótulo (não acessa a
 // nuvem), e em produção o `wrangler deploy` usa esses mesmos IDs pra conectar
 // no D1/R2 reais. Se algum dia for necessário trocar de conta/projeto, troque
-// os três valores abaixo (database_id, bucket_name, SESSION_SECRET).
+// os dois valores abaixo (database_id, bucket_name).
+//
+// IMPORTANTE: SESSION_SECRET NÃO fica aqui. Este arquivo vai para um
+// repositório público no GitHub, então qualquer segredo colocado em `vars`
+// ficaria visível para qualquer pessoa. O segredo de produção é configurado
+// direto no painel da Cloudflare (Worker > Settings > Variables and Secrets,
+// como "Secret", não "Text") depois que o Worker existir.
 const localBindingConfig = {
   main: "./worker/index.ts",
   compatibility_flags: ["nodejs_compat"],
@@ -30,9 +36,6 @@ const localBindingConfig = {
       bucket_name: "harmonia-files",
     },
   ],
-  vars: {
-    SESSION_SECRET: "yzX2h9rFwqVtA7/6lpCjNpnfXecMi3RHNhBfYHdsC3Y=",
-  },
 };
 
 export default defineConfig(async () => {
